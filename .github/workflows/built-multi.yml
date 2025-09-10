@@ -30,6 +30,7 @@ jobs:
           pip install -r requirements-win7.txt
           pip install pillow
           pip install pyinstaller
+          pip install opencv-python   # ✅ added fix
 
       - name: Copy cascades
         run: |
