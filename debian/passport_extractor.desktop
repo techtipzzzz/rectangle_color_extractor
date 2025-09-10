@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=Passport Extractor
+Comment=Smart Passport Photo Extractor
+Exec=passport_extractor
+Icon=passport_extractor
+Terminal=false
+Type=Application
+Categories=Graphics;Utility;

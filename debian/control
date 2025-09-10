@@ -1,0 +1,8 @@
+Package: passport-extractor
+Version: 1.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: libc6 (>= 2.27), libglib2.0-0, libgl1, tk, python3-tk
+Maintainer: Kasim K <kasim@example.com>
+Description: Smart Passport Photo Extractor

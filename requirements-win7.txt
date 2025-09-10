@@ -1,0 +1,8 @@
+opencv-python
+pillow
+pyinstaller
+twain
+pywin32
+wia_scan
+numpy
+

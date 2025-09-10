@@ -1,0 +1,8 @@
+numpy
+opencv-python
+tkinter-tooltip 
+pillow      
+twain
+pyinstaller
+flake8
+pytest

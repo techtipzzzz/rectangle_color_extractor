@@ -1,0 +1,181 @@
+name: Build Windows EXEs (Win7+ and Win10+) and Ubuntu 20.04+
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  APP_VERSION: "1.0"
+
+jobs:
+
+  build_win7:
+    name: Build (Windows 7+)
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        python-version: ["3.8"]
+        architecture: ["x64"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: ${{ matrix.architecture }}
+
+      - name: Install dependencies (Win7)
+        run: |
+          python -m pip install --upgrade pip
+          pip install pillow pyinstaller opencv-python wia_scan pywin32
+
+      - name: Copy Haar cascades
+        run: |
+          python -c "import cv2, os, shutil; \
+          os.makedirs('data', exist_ok=True); \
+          [shutil.copy(os.path.join(cv2.data.haarcascades, f), 'data') for f in ['haarcascade_frontalface_default.xml','haarcascade_eye.xml']]"
+
+      - name: Build EXE (Win7)
+        run: pyinstaller --noconfirm --onefile --windowed --icon=icon/passport_extractor.ico --name smart-passport-cropper-win7-v${{ env.APP_VERSION }} main.py
+
+      - name: Upload EXE artifact (Win7)
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-passport-cropper-win7-v${{ env.APP_VERSION }}
+          path: dist/smart-passport-cropper-win7-v${{ env.APP_VERSION }}.exe
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build Windows Installer (Win7)
+        run: iscc installer-win7.iss
+
+      - name: Upload Windows Installer (Win7)
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-passport-cropper-installer-win7-v${{ env.APP_VERSION }}
+          path: Output/SmartPassportCropper-Win7-Setup.exe
+
+  build_win10:
+    name: Build (Windows 10/11)
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: ["3.10"]
+        architecture: ["x64"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: ${{ matrix.architecture }}
+
+      - name: Install dependencies (Win10/11)
+        run: |
+          python -m pip install --upgrade pip
+          pip install pillow pyinstaller opencv-python wia_scan pywin32
+
+      - name: Copy Haar cascades
+        run: |
+          python -c "import cv2, os, shutil; \
+          os.makedirs('data', exist_ok=True); \
+          [shutil.copy(os.path.join(cv2.data.haarcascades, f), 'data') for f in ['haarcascade_frontalface_default.xml','haarcascade_eye.xml']]"
+
+      - name: Build EXE (Win10/11)
+        run: pyinstaller --noconfirm --onefile --windowed --icon=icon/passport_extractor.ico --name smart-passport-cropper-win10-v${{ env.APP_VERSION }} main.py
+
+      - name: Upload EXE artifact (Win10/11)
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-passport-cropper-win10-v${{ env.APP_VERSION }}
+          path: dist/smart-passport-cropper-win10-v${{ env.APP_VERSION }}.exe
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build Windows Installer (Win10/11)
+        run: iscc installer-win10.iss
+
+      - name: Upload Windows Installer (Win10/11)
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-passport-cropper-installer-win10-v${{ env.APP_VERSION }}
+          path: Output/SmartPassportCropper-Win10-Setup.exe
+
+  build_ubuntu:
+    name: Build and Package (Ubuntu .deb for 20.04+)
+    runs-on: ubuntu-22.04
+    container: ubuntu:20.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          export DEBIAN_FRONTEND=noninteractive
+          apt-get update
+          apt-get install -y \
+            tzdata \
+            python3 python3-pip python3-tk python3-dev \
+            tk-dev libtcl8.6 libtk8.6 \
+            libsane libsane-dev sane-utils \
+            libusb-1.0-0-dev \
+            ruby ruby-dev build-essential
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install pillow pyinstaller opencv-python pyinsane2
+
+      - name: Copy Haar cascades
+        run: |
+          python3 -c "import cv2, os, shutil; \
+          os.makedirs('data', exist_ok=True); \
+          [shutil.copy(os.path.join(cv2.data.haarcascades, f), 'data') for f in ['haarcascade_frontalface_default.xml','haarcascade_eye.xml']]"
+
+      - name: Build Linux binary
+        run: pyinstaller --noconfirm --onefile --windowed --hidden-import=tkinter --hidden-import=tkinter.ttk --name smart-passport-cropper-v${{ env.APP_VERSION }} main.py
+
+      - name: Install fpm
+        run: gem install --no-document fpm
+
+      - name: Prepare package structure
+        run: |
+          mkdir -p package/usr/local/bin
+          mkdir -p package/usr/share/applications
+          mkdir -p package/usr/share/icons/hicolor/64x64/apps
+          cp dist/smart-passport-cropper-v${{ env.APP_VERSION }} package/usr/local/bin/smart-passport-cropper
+          cp icon/passport_extractor.png package/usr/share/icons/hicolor/64x64/apps/smart-passport-cropper.png
+          cat > package/usr/share/applications/smart-passport-cropper.desktop <<EOL
+          [Desktop Entry]
+          Name=Smart Passport Cropper
+          Comment=Smart Passport Photo Cropper with scanner support
+          Exec=/usr/local/bin/smart-passport-cropper
+          Icon=smart-passport-cropper
+          Terminal=false
+          Type=Application
+          Categories=Graphics;Photography;Utility;
+          EOL
+
+      - name: Package as .deb
+        run: |
+          fpm -s dir -t deb -n smart-passport-cropper -v ${{ env.APP_VERSION }} \
+            --description "Smart Passport Photo Cropper with scanner support" \
+            --depends python3 \
+            --depends python3-tk \
+            --depends libsane \
+            --prefix / \
+            -C package .
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: smart-passport-cropper-deb-v${{ env.APP_VERSION }}
+          path: "*.deb"
