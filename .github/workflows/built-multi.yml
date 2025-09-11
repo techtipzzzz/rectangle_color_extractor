@@ -164,7 +164,7 @@ jobs:
            # Package into .deb
             mkdir -p package/DEBIAN package/usr/bin package/usr/share/applications package/usr/share/icons/hicolor/256x256/apps
             cat <<EOF > package/DEBIAN/control
-            Package: passport-extractor
+            Package: passport_extractor
             Version: 1.0-3.7
             Section: utils
             Priority: optional
