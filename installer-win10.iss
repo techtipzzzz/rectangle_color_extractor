@@ -17,3 +17,4 @@ Source: "data\*"; DestDir: "{app}\data"; Flags: ignoreversion recursesubdirs cre
 [Icons]
 Name: "{group}\Smart Passport Cropper"; Filename: "{app}\smart-passport-cropper.exe"; IconFilename: "icon\passport_extractor.ico"
 Name: "{userdesktop}\Smart Passport Cropper"; Filename: "{app}\smart-passport-cropper.exe"; IconFilename: "icon\passport_extractor.ico"
+ 
