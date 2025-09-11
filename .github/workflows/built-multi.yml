@@ -191,4 +191,4 @@ Description: Smart Passport Photo Cropper v4 (offline installer)
       - uses: actions/upload-artifact@v4
         with:
           name: passport_extractor_ubuntu18
-          path: passport_extractor_ubuntu18.deb  
+          path: passport_extractor_ubuntu18.deb   
