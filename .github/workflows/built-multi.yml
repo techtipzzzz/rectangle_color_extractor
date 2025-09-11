@@ -160,7 +160,7 @@ jobs:
               --hidden-import=cv2 --hidden-import=numpy
 
             mkdir -p package/DEBIAN package/usr/bin package/usr/share/applications package/usr/share/icons/hicolor/256x256/apps
-            cat <<EOF > package/DEBIAN/control
+cat <<EOF > package/DEBIAN/control
 Package: passport-extractor
 Version: 1.0-3.7
 Section: utils
