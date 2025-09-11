@@ -157,11 +157,11 @@ jobs:
               --add-data "models/deploy.prototxt:models" \
               --hidden-import=cv2 --hidden-import=numpy
 
-            # Prepare .deb package
+            # Prepare DEB package (fixed)
             mkdir -p package/DEBIAN package/usr/bin package/usr/share/applications package/usr/share/icons/hicolor/256x256/apps
 
-            cat <<EOF>package/DEBIAN/control
-Package: passport-extractor
+            # Write control file safely
+            echo "Package: passport-extractor
 Version: 1.0-3.7
 Section: utils
 Priority: optional
@@ -169,14 +169,13 @@ Architecture: amd64
 Depends:
 Maintainer: Kasim K <your-email@example.com>
 Description: Smart Passport Photo Cropper v4 (offline installer)
- Extract and crop passport-size photos automatically.
-EOF
+ Extract and crop passport-size photos automatically." > package/DEBIAN/control
 
+            # Copy EXE
             cp dist/passport_extractor package/usr/bin/
 
             # Desktop entry
-            cat <<EOF>package/usr/share/applications/passport_extractor.desktop
-[Desktop Entry]
+            echo "[Desktop Entry]
 Version=1.0
 Name=Passport Extractor
 Comment=Smart Passport Photo Cropper
@@ -184,13 +183,12 @@ Exec=passport_extractor
 Icon=passport_extractor
 Terminal=false
 Type=Application
-Categories=Graphics;
-EOF
+Categories=Graphics;" > package/usr/share/applications/passport_extractor.desktop
 
             # Copy actual PNG icon
-            mkdir -p package/usr/share/icons/hicolor/256x256/apps
             python3.7 -c "from PIL import Image; img=Image.open('icon/passport_extractor.png'); img = img.resize((256,256)); img.save('package/usr/share/icons/hicolor/256x256/apps/passport_extractor.png')"
 
+            # Build .deb
             dpkg-deb --build package passport_extractor_ubuntu18.deb
             ls -lh passport_extractor_ubuntu18.deb
 
