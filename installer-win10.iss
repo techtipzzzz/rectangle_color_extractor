@@ -7,6 +7,7 @@ UninstallDisplayIcon={app}\smart-passport-cropper.exe
 OutputBaseFilename=SmartPassportCropper-Win10-Setup
 Compression=lzma
 SolidCompression=yes
+OutputDir=Output
 
 [Files]
 Source: "dist\smart-passport-cropper-win10-v1.0.exe"; DestDir: "{app}"; DestName: "smart-passport-cropper.exe"
