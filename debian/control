@@ -1,4 +1,4 @@
-Package: passport-extractor
+Package: passport_extractor
 Version: 1.0
 Section: utils
 Priority: optional
