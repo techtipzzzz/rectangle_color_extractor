@@ -1,4 +1,4 @@
-name: Build Windows EXEs (Win7+ and Win10+) and Ubuntu 18.04+
+name: Build Passport Extractor (Win7/Win10 x64 + Ubuntu 18.04+)
 
 on:
   push:
@@ -8,104 +8,123 @@ on:
 
 jobs:
 
-  # ---------------- WINDOWS 7 BUILD ----------------
+  # ---------------- WINDOWS 7 BUILD (x64) ----------------
   build_win7:
-    name: Build (Windows 7+)
+    name: Build Windows 7 x64 EXE + Installer
     runs-on: windows-latest
     strategy:
       matrix:
         python-version: ["3.7"]
-        architecture: ["x86", "x64"]
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: ${{ matrix.architecture }}
-      - name: Install deps
+          architecture: x64
+
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-win7.txt
           pip install pillow pyinstaller opencv-python
+
       - name: Copy cascades
         run: |
           python -c "import cv2, os, shutil; \
           os.makedirs('data', exist_ok=True); \
           [shutil.copy(os.path.join(cv2.data.haarcascades, f), os.path.join('data', f)) \
           for f in ['haarcascade_frontalface_default.xml','haarcascade_eye.xml']]"
+
+      - name: Generate ICO icon
+        run: |
+          python -c "from PIL import Image; Image.open('icon/passport_extractor.png').save('icon/passport_extractor.ico')"
+
       - name: Build EXE
         shell: pwsh
         run: |
           pyinstaller --onefile --noconsole `
           "main.py" `
-          --name passport_extractor_win7_${{ matrix.architecture }} `
+          --name passport_extractor_win7 `
           --add-data "data\haarcascade_frontalface_default.xml;data" `
           --add-data "data\haarcascade_eye.xml;data" `
           --add-data "models\res10_300x300_ssd_iter_140000.caffemodel;models" `
           --add-data "models\deploy.prototxt;models" `
           --hidden-import cv2 --hidden-import numpy
+
       - name: Build Inno Setup Installer
         shell: pwsh
         run: |
           "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-win7.iss
+
       - uses: actions/upload-artifact@v4
         with:
           name: passport_extractor_win7_installer
           path: SmartPassportCropper-Win7-Setup.exe
 
-  # ---------------- WINDOWS 10 BUILD ----------------
+  # ---------------- WINDOWS 10 BUILD (x64) ----------------
   build_win10:
-    name: Build (Windows 10+)
+    name: Build Windows 10 x64 EXE + Installer
     runs-on: windows-latest
     strategy:
       matrix:
         python-version: ["3.10"]
-        architecture: ["x86", "x64"]
     steps:
       - uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-          architecture: ${{ matrix.architecture }}
-      - name: Install deps
+          architecture: x64
+
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pillow pyinstaller opencv-python
+
       - name: Copy cascades
         run: |
           python -c "import cv2, os, shutil; \
           os.makedirs('data', exist_ok=True); \
           [shutil.copy(os.path.join(cv2.data.haarcascades, f), os.path.join('data', f)) \
           for f in ['haarcascade_frontalface_default.xml','haarcascade_eye.xml']]"
+
+      - name: Generate ICO icon
+        run: |
+          python -c "from PIL import Image; Image.open('icon/passport_extractor.png').save('icon/passport_extractor.ico')"
+
       - name: Build EXE
         shell: pwsh
         run: |
           pyinstaller --onefile --noconsole `
           "main.py" `
-          --name passport_extractor_win10_${{ matrix.architecture }} `
+          --name passport_extractor_win10 `
           --add-data "data\haarcascade_frontalface_default.xml;data" `
           --add-data "data\haarcascade_eye.xml;data" `
           --add-data "models\res10_300x300_ssd_iter_140000.caffemodel;models" `
           --add-data "models\deploy.prototxt;models" `
           --hidden-import cv2 --hidden-import numpy
+
       - name: Build Inno Setup Installer
         shell: pwsh
         run: |
           "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer-win10.iss
+
       - uses: actions/upload-artifact@v4
         with:
           name: passport_extractor_win10_installer
           path: SmartPassportCropper-Win10-Setup.exe
 
-  # ---------------- UBUNTU 18.04+ BUILD ----------------
+  # ---------------- UBUNTU 18.04+ BUILD (x64) ----------------
   build_ubuntu:
-    name: Build (Ubuntu 18.04+)
+    name: Build Ubuntu 18.04+ x64 EXE + .deb Installer
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
+
       - name: Build inside Ubuntu 18.04 container
         uses: addnab/docker-run-action@v3
         with:
@@ -117,7 +136,7 @@ jobs:
             apt-get install -y software-properties-common
             add-apt-repository -y ppa:deadsnakes/ppa
             apt-get update
-            apt-get install -y python3.7 python3.7-distutils python3.7-dev python3-pip build-essential imagemagick libgl1 libglib2.0-0
+            apt-get install -y python3.7 python3.7-distutils python3.7-dev python3-pip build-essential libgl1 libglib2.0-0
 
             python3.7 -m pip install --upgrade pip
             pip3 install -r requirements-linux.txt pyinstaller pillow opencv-python
@@ -128,7 +147,7 @@ jobs:
             [shutil.copy(os.path.join(cv2.data.haarcascades, f), 'data') \
             for f in ['haarcascade_frontalface_default.xml','haarcascade_eye.xml']]"
 
-            # Build standalone binary
+            # Build standalone EXE
             pyinstaller --onefile --noconsole \
               "main.py" \
               --name passport_extractor \
@@ -138,7 +157,7 @@ jobs:
               --add-data "models/deploy.prototxt:models" \
               --hidden-import=cv2 --hidden-import=numpy
 
-            # Package as .deb
+            # Prepare .deb package
             mkdir -p package/DEBIAN package/usr/bin package/usr/share/applications package/usr/share/icons/hicolor/256x256/apps
 
             cat <<EOF>package/DEBIAN/control
@@ -155,6 +174,7 @@ EOF
 
             cp dist/passport_extractor package/usr/bin/
 
+            # Desktop entry
             cat <<EOF>package/usr/share/applications/passport_extractor.desktop
 [Desktop Entry]
 Version=1.0
@@ -167,9 +187,11 @@ Type=Application
 Categories=Graphics;
 EOF
 
-            convert -size 256x256 xc:lightblue package/usr/share/icons/hicolor/256x256/apps/passport_extractor.png
-            dpkg-deb --build package passport_extractor_ubuntu18.deb
+            # Copy actual PNG icon
+            mkdir -p package/usr/share/icons/hicolor/256x256/apps
+            python3.7 -c "from PIL import Image; img=Image.open('icon/passport_extractor.png'); img = img.resize((256,256)); img.save('package/usr/share/icons/hicolor/256x256/apps/passport_extractor.png')"
 
+            dpkg-deb --build package passport_extractor_ubuntu18.deb
             ls -lh passport_extractor_ubuntu18.deb
 
       - uses: actions/upload-artifact@v4
