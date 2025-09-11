@@ -1,4 +1,4 @@
-name: Build Windows EXEs (Win7+ and Win10+) and Ubuntu 18.04+
+name: Build EXEs + Installers + Ubuntu .deb
 
 on:
   push:
@@ -9,18 +9,21 @@ on:
 jobs:
 
   build_win7:
-    name: Build (Windows 7+)
+    name: Windows 7 EXE + Installer
     runs-on: windows-latest
     strategy:
       matrix:
         python-version: ["3.7"]
-        architecture: ["x86", "x64"]
+        architecture: ["x64"]
     steps:
       - uses: actions/checkout@v4
 
       - name: Convert PNG to ICO
+        shell: pwsh
         run: |
-          magick convert icon/passport_extractor.png icon/passport_extractor.ico
+          $png = "icon\passport_extractor.png"
+          $ico = "icon\passport_extractor.ico"
+          magick convert $png $ico
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -28,7 +31,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           architecture: ${{ matrix.architecture }}
 
-      - name: Install deps (Win7)
+      - name: Install deps
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-win7.txt
@@ -38,46 +41,46 @@ jobs:
         run: |
           python -c "import cv2, os, shutil; \
           os.makedirs('data', exist_ok=True); \
-          [shutil.copy(os.path.join(cv2.data.haarcascades, f), os.path.join('data', f)) \
-          for f in ['haarcascade_frontalface_default.xml','haarcascade_eye.xml']]"
+          [shutil.copy(os.path.join(cv2.data.haarcascades,f),'data') for f in ['haarcascade_frontalface_default.xml','haarcascade_eye.xml']]"
 
       - name: Build EXE
         shell: pwsh
         run: |
           pyinstaller --onefile --noconsole `
           "main.py" `
-          --name smart-passport-cropper-win7-v1.0 `
-          --icon "icon/passport_extractor.ico" `
+          --name passport_extractor_win7_${{ matrix.architecture }} `
           --add-data "data\haarcascade_frontalface_default.xml;data" `
           --add-data "data\haarcascade_eye.xml;data" `
           --add-data "models\res10_300x300_ssd_iter_140000.caffemodel;models" `
           --add-data "models\deploy.prototxt;models" `
-          --add-data "icon\passport_extractor.png;icon" `
           --hidden-import cv2 --hidden-import numpy
 
-      - name: Package
+      - name: Build Inno Setup Installer
+        shell: pwsh
         run: |
-          Set-Content README.txt "Smart Passport Cropper (Windows 7 SP1+)\nBuilt with Python 3.7"
-          iscc installer-win7.iss
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer-win7.iss"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SmartPassportCropper-Win7-Setup
-          path: Output/SmartPassportCropper-Win7-Setup.exe
+          name: Windows7-Artifacts
+          path: |
+            dist\passport_extractor_win7_${{ matrix.architecture }}.exe
+            Output\SmartPassportCropper-Win7-Setup.exe
 
   build_win10:
-    name: Build (Windows 10/11+)
+    name: Windows 10 EXE + Installer
     runs-on: windows-latest
     strategy:
       matrix:
         python-version: ["3.10"]
-        architecture: ["x86", "x64"]
+        architecture: ["x64"]
     steps:
       - uses: actions/checkout@v4
 
       - name: Convert PNG to ICO
+        shell: pwsh
         run: |
-          magick convert icon/passport_extractor.png icon/passport_extractor.ico
+          magick convert icon\passport_extractor.png icon\passport_extractor.ico
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -85,7 +88,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           architecture: ${{ matrix.architecture }}
 
-      - name: Install deps (Win10/11)
+      - name: Install deps
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -95,40 +98,39 @@ jobs:
         run: |
           python -c "import cv2, os, shutil; \
           os.makedirs('data', exist_ok=True); \
-          [shutil.copy(os.path.join(cv2.data.haarcascades, f), os.path.join('data', f)) \
-          for f in ['haarcascade_frontalface_default.xml','haarcascade_eye.xml']]"
+          [shutil.copy(os.path.join(cv2.data.haarcascades,f),'data') for f in ['haarcascade_frontalface_default.xml','haarcascade_eye.xml']]"
 
       - name: Build EXE
         shell: pwsh
         run: |
           pyinstaller --onefile --noconsole `
           "main.py" `
-          --name smart-passport-cropper-win10-v1.0 `
-          --icon "icon/passport_extractor.ico" `
+          --name passport_extractor_win10_${{ matrix.architecture }} `
           --add-data "data\haarcascade_frontalface_default.xml;data" `
           --add-data "data\haarcascade_eye.xml;data" `
           --add-data "models\res10_300x300_ssd_iter_140000.caffemodel;models" `
           --add-data "models\deploy.prototxt;models" `
-          --add-data "icon\passport_extractor.png;icon" `
           --hidden-import cv2 --hidden-import numpy
 
-      - name: Package
+      - name: Build Inno Setup Installer
+        shell: pwsh
         run: |
-          Set-Content README.txt "Smart Passport Cropper (Windows 10/11+)\nBuilt with Python 3.10"
-          iscc installer-win10.iss
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer-win10.iss"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: SmartPassportCropper-Win10-Setup
-          path: Output/SmartPassportCropper-Win10-Setup.exe
+          name: Windows10-Artifacts
+          path: |
+            dist\passport_extractor_win10_${{ matrix.architecture }}.exe
+            Output\SmartPassportCropper-Win10-Setup.exe
 
   build_ubuntu:
-    name: Build (Ubuntu 18.04 inside container)
+    name: Ubuntu 18.04 .deb
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build inside Ubuntu 18.04 container
+      - name: Build in Ubuntu 18.04 container
         uses: addnab/docker-run-action@v3
         with:
           image: ubuntu:18.04
@@ -136,10 +138,11 @@ jobs:
           run: |
             set -e
             apt-get update
-            apt-get install -y software-properties-common imagemagick
+            apt-get install -y software-properties-common
             add-apt-repository -y ppa:deadsnakes/ppa
             apt-get update
-            apt-get install -y python3.7 python3.7-distutils python3.7-dev python3-pip build-essential libgl1 libglib2.0-0
+            apt-get install -y python3.7 python3.7-dev python3.7-distutils python3-pip \
+                               build-essential imagemagick libgl1 libglib2.0-0
 
             python3.7 -m pip install --upgrade pip
             pip3 install -r requirements-linux.txt
@@ -147,47 +150,45 @@ jobs:
 
             mkdir -p data
             python3.7 -c "import cv2, os, shutil; \
-            [shutil.copy(os.path.join(cv2.data.haarcascades, f), 'data') \
-            for f in ['haarcascade_frontalface_default.xml', 'haarcascade_eye.xml']]"
+            [shutil.copy(os.path.join(cv2.data.haarcascades,f),'data') for f in ['haarcascade_frontalface_default.xml','haarcascade_eye.xml']]"
 
-            pyinstaller --onefile --noconsole \
-              "main.py" \
-              --name passport_extractor \
+            pyinstaller --onefile --noconsole "main.py" --name passport_extractor \
               --add-data "data/haarcascade_frontalface_default.xml:data" \
               --add-data "data/haarcascade_eye.xml:data" \
               --add-data "models/res10_300x300_ssd_iter_140000.caffemodel:models" \
               --add-data "models/deploy.prototxt:models" \
-              --add-data "icon/passport_extractor.png:icon" \
               --hidden-import=cv2 --hidden-import=numpy
 
             mkdir -p package/DEBIAN package/usr/bin package/usr/share/applications package/usr/share/icons/hicolor/256x256/apps
             cat <<EOF > package/DEBIAN/control
-            Package: passport-extractor
-            Version: 1.0-3.7
-            Section: utils
-            Priority: optional
-            Architecture: amd64
-            Maintainer: Kasim K <your-email@example.com>
-            Description: Smart Passport Photo Cropper v4 (offline installer)
-             Extract and crop passport-size photos automatically.
-            EOF
+Package: passport-extractor
+Version: 1.0-3.7
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends:
+Maintainer: Kasim K <your-email@example.com>
+Description: Smart Passport Photo Cropper v4 (offline installer)
+ Extract and crop passport-size photos automatically.
+EOF
 
             cp dist/passport_extractor package/usr/bin/
             cat <<EOF > package/usr/share/applications/passport_extractor.desktop
-            [Desktop Entry]
-            Version=1.0
-            Name=Passport Extractor
-            Comment=Smart Passport Photo Cropper
-            Exec=passport_extractor
-            Icon=passport_extractor
-            Terminal=false
-            Type=Application
-            Categories=Graphics;
-            EOF
-            convert icon/passport_extractor.png -resize 256x256 package/usr/share/icons/hicolor/256x256/apps/passport_extractor.png
+[Desktop Entry]
+Version=1.0
+Name=Passport Extractor
+Comment=Smart Passport Photo Cropper
+Exec=passport_extractor
+Icon=passport_extractor
+Terminal=false
+Type=Application
+Categories=Graphics;
+EOF
+
+            magick icon/passport_extractor.png package/usr/share/icons/hicolor/256x256/apps/passport_extractor.png
             dpkg-deb --build package passport_extractor_ubuntu18.deb
 
       - uses: actions/upload-artifact@v4
         with:
-          name: passport_extractor_ubuntu18
+          name: Ubuntu18-Artifacts
           path: passport_extractor_ubuntu18.deb
