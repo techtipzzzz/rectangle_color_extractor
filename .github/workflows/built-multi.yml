@@ -116,7 +116,7 @@ jobs:
 
   # ---------------- UBUNTU 18.04 BUILD ----------------
   build_ubuntu:
-    name: Build (Ubuntu 18.04 inside container)
+    name: Build Ubuntu 18.04+ .deb
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -133,64 +133,61 @@ jobs:
             apt-get install -y software-properties-common
             add-apt-repository -y ppa:deadsnakes/ppa
             apt-get update
-            # Install Python 3.7 + dev headers + Tkinter + OpenCV + image libs
-            DEBIAN_FRONTEND=noninteractive apt-get install -y \
-              python3.7 python3.7-distutils python3.7-dev python3.7-tk python3-pip \
-              build-essential imagemagick libgl1 libglib2.0-0 tzdata \
-              libjpeg-dev zlib1g-dev libpng-dev libtiff-dev tk-dev
+            # Python 3.7 + dev + Tkinter + OpenCV + image libs
+            apt-get install -y python3.7 python3.7-distutils python3.7-dev python3.7-tk python3-pip build-essential imagemagick libgl1 libglib2.0-0 tzdata libjpeg-dev zlib1g-dev libpng-dev libtiff-dev tk-dev
             python3.7 -m pip install --upgrade pip
             pip3 install -r requirements-linux.txt
-            # Reinstall Pillow after image libs are available
             pip3 install --no-cache-dir --force-reinstall pillow
             pip3 install pyinstaller opencv-python
-            # Copy cascades
-            mkdir -p data
-            python3.7 -c "import cv2, os, shutil; \
-            [shutil.copy(os.path.join(cv2.data.haarcascades, f), 'data') \
-            for f in ['haarcascade_frontalface_default.xml', 'haarcascade_eye.xml']]"
 
             # Copy cascades
             mkdir -p data
             python3.7 -c "import cv2, os, shutil; [shutil.copy(os.path.join(cv2.data.haarcascades, f), 'data') for f in ['haarcascade_frontalface_default.xml','haarcascade_eye.xml']]"
 
-           # Build binary
-            pyinstaller --onefile --noconsole \
-              "main.py" \
+            # Build EXE
+            pyinstaller --onefile --noconsole main.py \
               --name passport_extractor \
               --add-data "data/haarcascade_frontalface_default.xml:data" \
               --add-data "data/haarcascade_eye.xml:data" \
+              --add-data "models/res10_300x300_ssd_iter_140000.caffemodel:models" \
+              --add-data "models/deploy.prototxt:models" \
               --hidden-import=cv2 --hidden-import=numpy
 
-           # Package into .deb
-            mkdir -p package/DEBIAN package/usr/bin package/usr/share/applications package/usr/share/icons/hicolor/256x256/apps
-            cat <<EOF > package/DEBIAN/control
-            Package: passport_extractor
-            Version: 1.0-3.7
-            Section: utils
-            Priority: optional
-            Architecture: amd64
-            Depends: libc6 (>= 2.27), libglib2.0-0, libgl1, tk, python3-tk
-            Maintainer: Kasim K <your-email@example.com>
-            Description: Smart Passport Photo Cropper v4 (offline installer)
-             Automatically detect, extract, and crop passport-size photos.
-             Built with Python 3.7, Tkinter GUI, and OpenCV.
-            EOF
+            # Prepare .deb package
+            mkdir -p package/DEBIAN package/usr/bin package/usr/share/passport_extractor package/usr/share/applications package/usr/share/icons/hicolor/256x256/apps
             cp dist/passport_extractor package/usr/bin/
-            cat <<EOF > package/usr/share/applications/passport_extractor.desktop
-            [Desktop Entry]
-            Version=1.0
-            Name=Passport Extractor
-            Comment=Smart Passport Photo Cropper
-            Exec=passport_extractor
-            Icon=passport_extractor
-            Terminal=false
-            Type=Application
-            Categories=Graphics;
-            EOF
-            # Copy your real icon (must be in repo at icon/passport_extractor.png)
-            cp icons/passport_extractor.png package/usr/share/icons/hicolor/256x256/apps/passport_extractor.png
+            cp -r models/* package/usr/share/passport_extractor/models/
+            cp -r data/* package/usr/share/passport_extractor/data/
+
+            # Icon
+            python3.7 -c "from PIL import Image; img=Image.open('icon/passport_extractor.png'); img = img.resize((256,256)); img.save('package/usr/share/icons/hicolor/256x256/apps/passport_extractor.png')"
+
+            # Desktop entry
+            echo "[Desktop Entry]
+Version=1.0
+Name=Passport Extractor
+Comment=Smart Passport Photo Cropper
+Exec=passport_extractor
+Icon=passport_extractor
+Terminal=false
+Type=Application
+Categories=Graphics;" > package/usr/share/applications/passport_extractor.desktop
+
+            # Control file
+            echo "Package: passport-extractor
+Version: 1.0-3.7
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: libc6 (>= 2.27), libglib2.0-0, libgl1, tk, python3-tk
+Maintainer: Kasim K <your-email@example.com>
+Description: Smart Passport Photo Cropper v4 (offline installer)
+ Automatically detect, extract, and crop passport-size photos.
+ Built with Python 3.7, Tkinter GUI, and OpenCV." > package/DEBIAN/control
+
             dpkg-deb --build package passport_extractor_ubuntu18.deb
-            ls -lh passport_extractor_ubuntu18.deb  # verify output file
+            ls -lh passport_extractor_ubuntu18.deb
+
       - uses: actions/upload-artifact@v4
         with:
           name: passport_extractor_ubuntu18
